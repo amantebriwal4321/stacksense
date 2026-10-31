@@ -1,0 +1,102 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{font:11pt/1.5 'DejaVu Sans',sans-serif;color:#1a1d24;margin:0 18mm}h1{font-size:24pt;margin:0 0 4px}h2{font-size:14pt;color:#0f766e;border-bottom:1px solid #cbd5e1;padding-bottom:3px;margin-top:22px}
+h3{font-size:11.5pt;margin:12px 0 4px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:6px 0}td,th{border:1px solid #cbd5e1;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f1f5f9}
+pre{background:#f1f5f9;padding:8px;font-size:9pt;border-radius:4px}img{display:block;margin:4px auto;max-width:100%;max-height:112mm;border:1px solid #cbd5e1;border-radius:4px;margin:4px 0}.cap{font-size:9pt;color:#475569;margin-bottom:10px}.pb{page-break-before:always}.sub{color:#475569}
+</style></head><body>
+<h1>StackSense</h1><div class="sub">Constraint scored tech stack recommender. StackSense Challenge, Synergy '26, IIIT Bangalore. Solo entry.</div>
+<p><b>Live:</b> https://stacksense-aman.vercel.app &nbsp; <b>Code:</b> https://github.com/amantebriwal4321/stacksense</p>
+
+<h2>1. Problem and approach</h2>
+<p>Picking a stack is a trade off between what the team knows, what the product needs and what the budget and infra allow. Generic advice ("use MERN") ignores those limits, and LLM answers are hard to audit and change between runs.</p>
+<p>StackSense is a deterministic rule engine. It treats some inputs as hard constraints (things that cannot be broken) and the rest as weighted preferences. Every recommendation comes with the points each factor contributed, the runner up, the options that were ruled out and why, a cost band, and warnings for conflicting inputs. It runs entirely in the browser, so it is instant and private.</p>
+
+<h2>2. Input parameters and why each one is there</h2>
+<table><tr><th>Input</th><th>Values</th><th>What it changes</th></tr>
+<tr><td>Project type</td><td>SaaS, e-commerce, fintech, social, content, data/ML, internal tool</td><td>Interactivity weight, need for transactions, content site and internal tool fit</td></tr>
+<tr><td>Data shape</td><td>relational, document, key value, time series, graph, geo</td><td>Biggest database factor (weight 4). Postgres gets partial credit for most shapes via JSONB and PostGIS</td></tr>
+<tr><td>Scale</td><td>5 MAU bands, &lt;1k to 5M+</td><td>Throughput and horizontal scale weights, cost band, extras (cache, CDN, queue)</td></tr>
+<tr><td>Traffic</td><td>steady, spiky</td><td>Spiky favors scale to zero hosts and serverless friendly backends</td></tr>
+<tr><td>Team size</td><td>1 to 500</td><td>Small teams weight low ops and speed. Big teams weight structure, typing and hiring pool</td></tr>
+<tr><td>Team skills</td><td>JS/TS, Python, Go, Java, PHP, Dart</td><td>Skill match is the top weighted factor for frontend and backend. Teams ship fastest in what they know</td></tr>
+<tr><td>Deadline</td><td>ASAP, normal, long term</td><td>Learning curve and speed to ship weights</td></tr>
+<tr><td>Budget</td><td>USD per month</td><td>Hard filter on host baseline cost, soft cost efficiency weight, over budget warning</td></tr>
+<tr><td>Infra</td><td>any, serverless, containers, on-prem</td><td>Hard filter on hosting kind and managed only services</td></tr>
+<tr><td>Cloud</td><td>any, AWS, GCP</td><td>Hard filter on cloud locked DBs and hosts, alignment bonus</td></tr>
+<tr><td>Compliance</td><td>none, PCI DSS, HIPAA</td><td>PCI removes weak ACID stores. HIPAA removes hosts and BaaS without a standard BAA</td></tr>
+<tr><td>Data in India</td><td>yes/no</td><td>Keeps only hosts with Indian regions (DPDP Act 2023)</td></tr>
+<tr><td>SEO, realtime, mobile, ML</td><td>flags</td><td>Turn on factor weights for SSR, sockets, mobile code sharing and ML ecosystem</td></tr></table>
+<p>Research behind the inputs: these are the questions that drive real architecture reviews. Scale and traffic decide compute shape, data shape decides the store, team size and skill decide maintainability, and budget, cloud and compliance are hard business limits. Attribute values for each option were set from official docs and pricing pages (Section 9).</p>
+
+<h2>3. System architecture</h2>
+<pre>
+ UI (public/index.html, app.js)      CLI (src/cli.js)
+            \                          /
+             +---- src/engine.js -----+
+                      |
+   normalize -> edge case detector -> warnings
+                      |
+   per layer (frontend, backend, database, hosting):
+     hard constraint filter -> eliminated + reason
+     weighted soft scoring  -> score 0..100 + factor breakdown
+                      |
+   cross layer search over top 4 per layer (256 combos)
+     compatibility penalties and bonuses
+                      |
+   stack + runner ups + cost band + extras + fit score
+</pre>
+<p>The engine is one file with no dependencies. It works as a browser script and a Node module, so the UI, the CLI and the tests use the exact same logic. Deployed as a static site on Vercel.</p>
+<h3>Catalog</h3>
+<p>8 frontends (Next.js, React + Vite, SvelteKit, Astro, Angular, HTMX, Flutter, React Native), 8 backends (NestJS, Express/Fastify, FastAPI, Django, Go, Spring Boot, Laravel, Supabase), 9 databases (PostgreSQL, MySQL, MongoDB, DynamoDB, Firestore, CockroachDB, TimescaleDB, Neo4j, SQLite), 9 hosting targets (Vercel, Render/Railway, Cloud Run, Lambda, ECS Fargate, Kubernetes, VPS, on-prem, Firebase). Each option has 1 to 5 ratings like perf, concurrency, realtime, ML fit, learning curve, ACID, horizontal scale, ops burden, plus facts like language, cloud lock in, baseline monthly cost and India region support.</p>
+
+<h2>4. Scoring</h2>
+<p><b>Layer score</b> = sum(weight_i x value_i) / sum(weight_i), scaled to 0..100. Weights come from the inputs. Example for backend: skill match 3.5 always, ML integration 3.5 only when ML is on, throughput 3 at 500k+ MAU but 0.5 for small apps. Factors with weight 0 drop out, so they cannot dilute the score. The UI shows each factor's share of the final points.</p>
+<p><b>Stack score</b> = 0.22 frontend + 0.28 backend + 0.25 database + 0.25 hosting, minus compatibility penalties. Backend is weighted a bit higher because it is the hardest layer to change later.</p>
+<h3>Cross layer rules</h3>
+<table><tr><th>Pair</th><th>Effect</th><th>Reason</th></tr>
+<tr><td>SQLite on serverless host</td><td>-40</td><td>Function file systems are ephemeral</td></tr>
+<tr><td>Supabase with non Postgres DB</td><td>-30</td><td>Supabase is Postgres</td></tr>
+<tr><td>HTMX with BaaS</td><td>-20</td><td>HTMX needs a server rendering HTML</td></tr>
+<tr><td>Cloud locked DB on another cloud's host</td><td>-15</td><td>Egress cost and latency</td></tr>
+<tr><td>Slow cold start backend on FaaS</td><td>-12</td><td>Spring and Django on functions</td></tr>
+<tr><td>Realtime on short lived functions</td><td>-10</td><td>Sockets need a long running process</td></tr>
+<tr><td>Next.js on Vercel, same language front and back</td><td>bonus</td><td>Less glue, one toolchain</td></tr></table>
+<p>If a layer's solo winner loses in this pass, the UI says so ("higher alone but lost on cross layer fit"), so the override is visible.</p>
+<h3>Cost band</h3><p>Host baseline plus a compute and a database estimate per scale band, shown as a low to high range. Flagged when the low end is above the budget.</p>
+
+<h2 class="pb">5. Sample recommendations</h2>
+<img src="shots/startup.png"><div class="cap">Solo SaaS MVP: 2 devs, TS, $20/mo, SEO, ASAP. Next.js, Express/Fastify, MySQL, Vercel. Fargate and Kubernetes ruled out by budget.</div>
+<img src="shots/ml.png"><div class="cap">Data/ML product, Python team, GCP only, time series. FastAPI and TimescaleDB, AWS only options removed.</div>
+<img src="shots/bank.png"><div class="cap">Fintech, PCI, 40 engineers, Java, AWS, data in India. Spring Boot, CockroachDB, ECS Fargate. Mongo, Dynamo, Firestore removed by PCI and cloud lock.</div>
+<img src="shots/chat.png"><div class="cap">Realtime mobile chat with spiky traffic. React Native, Node, Firestore, Cloud Run, plus WebSockets, Redis, CDN and queue.</div>
+<img src="shots/onprem.png"><div class="cap">On-prem internal tool, solo PHP dev, $0. HTMX, Laravel, SQLite, on-prem Docker.</div>
+
+<h2 class="pb">6. Edge case handling</h2>
+<img src="shots/broke.png"><div class="cap">Impossible combo: zero budget, 5M+ users, HIPAA, serverless, graph data, no skills.</div>
+<table><tr><th>Case</th><th>Handling</th></tr>
+<tr><td>Invalid values (team "abc", budget -5, unknown scale)</td><td>Normalized to safe defaults, never crashes</td></tr>
+<tr><td>Zero budget at 500k+ MAU</td><td>Warning, cost band shown against budget</td></tr>
+<tr><td>Compliance with budget under $20</td><td>Warning about audit, backup and encryption costs</td></tr>
+<tr><td>On-prem plus cloud preference</td><td>Cloud preference ignored with a note</td></tr>
+<tr><td>Graph data on serverless</td><td>Warning, a long running DB is still needed</td></tr>
+<tr><td>Solo dev at large scale</td><td>Managed services favored, note shown</td></tr>
+<tr><td>Big team plus ASAP</td><td>Structured frameworks boosted</td></tr>
+<tr><td>No skills selected</td><td>Falls back to hiring pool and learning curve</td></tr>
+<tr><td>Mobile plus SEO</td><td>Web layer picked for SEO, mobile client listed as an extra</td></tr>
+<tr><td>Realtime on serverless</td><td>Managed socket layer suggested</td></tr>
+<tr><td>Spiky traffic on on-prem</td><td>Suggest sizing for peak or adding a queue</td></tr>
+<tr><td>A layer with zero valid options</td><td>No stack returned, UI lists every eliminated option and its reason so the user knows which limit to relax</td></tr></table>
+
+<h2>7. Testing</h2>
+<p><code>npm test</code> runs 10 checks: on-prem never gets a cloud host or cloud only DB, Python plus ML gives FastAPI, budget removes expensive hosts, PCI removes weak ACID stores, SQLite never lands on serverless, cloud lock is respected, impossible inputs warn instead of crashing, garbage input is normalized, India residency filters hosts, and an over constrained input returns no stack or the only valid host.</p>
+
+<h2>8. Limits and next steps</h2>
+<p>Ratings are a hand tuned snapshot from Oct 2026, cost is a rough band, Azure is not in the catalog. Next: per option sources in the UI, Azure, a "why not X" query, and export of the result as an ADR (architecture decision record).</p>
+
+<h2>9. Third party tools and sources</h2>
+<ul>
+<li>No runtime libraries. Built with plain HTML, CSS and JavaScript. Hosted on Vercel (vercel.com).</li>
+<li>Demo tooling: Playwright (playwright.dev, Apache 2.0) for screen capture, FFmpeg (ffmpeg.org) for editing, Microsoft Edge neural TTS via the open source edge-tts package (github.com/rany2/edge-tts) for the voiceover.</li>
+<li>Option attributes and costs from official docs and pricing pages: nextjs.org, vite.dev, svelte.dev, astro.build, angular.dev, htmx.org, flutter.dev, reactnative.dev, nestjs.com, fastapi.tiangolo.com, djangoproject.com, go.dev, spring.io, laravel.com, supabase.com, postgresql.org, mysql.com, mongodb.com, aws.amazon.com (DynamoDB, Lambda, ECS, HIPAA eligible services), firebase.google.com, cockroachlabs.com, timescale.com, neo4j.com, sqlite.org, vercel.com/pricing, render.com/pricing, cloud.google.com/run (pricing and regions), kubernetes.io.</li>
+<li>Compliance references: PCI Security Standards Council (pcisecuritystandards.org), HHS HIPAA guidance (hhs.gov/hipaa), India Digital Personal Data Protection Act 2023 (meity.gov.in).</li>
+</ul>
+</body></html>
