@@ -235,7 +235,7 @@
     const cost = estimateCost(best.ho, best.db, p);
     if (cost.overBudget) warnings.push('Estimated run cost $' + cost.low + ' to $' + cost.high + '/mo is above the $' + p.budget + '/mo budget at this scale.');
     const pick = (x, l) => {
-      const alt = layers[l].ranked.find((r) => r.id !== x.id);
+      const alt = layers[l].ranked.find((r) => r.id !== x.id && !(l === 'database' && r.id === 'sqlite' && best.ho.opt.serverless));
       return { id: x.id, name: x.name, score: x.score, note: x.note, why: x.contrib.slice(0, 3), all: x.contrib, runnerUp: alt ? { name: alt.name, score: alt.score, gap: +(x.score - alt.score).toFixed(1) } : null };
     };
     const stack = { frontend: pick(best.fe, 'frontend'), backend: pick(best.be, 'backend'), database: pick(best.db, 'database'), hosting: pick(best.ho, 'hosting') };

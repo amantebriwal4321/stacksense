@@ -23,7 +23,7 @@ function render(){
  for(const[l,x]of Object.entries(r.stack)){const el=r.layers[l].eliminated;
   h+=`<div class="card"><div class="layer">${l}</div><div class="name">${esc(x.name)}<span class="score">${x.score}</span></div><div class="note">${esc(x.note)}</div>
   ${x.all.slice(0,5).map(c=>`<div class="bar"><span>${esc(c.label)}</span><span class="t"><i style="width:${c.value*20}%"></i></span><span>+${c.points}</span></div>`).join('')}
-  ${x.runnerUp?`<div class="ru">Runner up: ${esc(x.runnerUp.name)} (${x.runnerUp.score}, ${x.runnerUp.gap} pts behind)</div>`:''}
+  ${x.runnerUp?`<div class="ru">Runner up: ${esc(x.runnerUp.name)} (${x.runnerUp.score}${x.runnerUp.gap<0?', higher alone but lost on cross layer fit':', '+x.runnerUp.gap+' pts behind'})</div>`:''}
   ${el.length?`<details><summary>${el.length} ruled out by hard constraints</summary><ul>${el.map(e=>`<li>${esc(e.name)}: ${esc(e.reason)}</li>`).join('')}</ul></details>`:''}</div>`}
  h+='</div>';
  if(r.compatNotes.length||r.extras.length)h+=`<div class="card extras"><div class="layer">Also add</div><ul>${r.extras.map(e=>`<li>${esc(e)}</li>`).join('')}${r.compatNotes.map(e=>`<li>Note: ${esc(e)}</li>`).join('')}</ul></div>`;
