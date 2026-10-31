@@ -1,0 +1,1 @@
+{ "name": "stacksense", "version": "1.0.0", "license": "MIT", "scripts": { "build": "cp src/engine.js public/engine.js", "test": "node test/engine.test.js", "cli": "node src/cli.js" } }

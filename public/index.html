@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StackSense: constraint scored tech stack recommender</title>
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="brand"><span class="logo">◆</span> StackSense</div><div class="tag">Give it your constraints. Get a stack with the math behind it.</div></header>
+<main>
+<section class="panel" id="form">
+  <div class="presets"><span>Try:</span>
+    <button data-p="startup">Solo SaaS MVP</button><button data-p="ml">ML analytics</button><button data-p="bank">Fintech, PCI, India</button><button data-p="chat">Realtime chat</button><button data-p="onprem">On-prem internal tool</button><button data-p="broke">Impossible combo</button>
+  </div>
+  <h3>Project</h3>
+  <label>Type<select id="projectType">
+    <option value="saas">SaaS web app</option><option value="ecommerce">E-commerce</option><option value="fintech">Fintech / payments</option><option value="social">Social / chat</option><option value="content">Content / blog / docs</option><option value="analytics">Data / ML product</option><option value="internal">Internal tool</option></select></label>
+  <label>Data shape<select id="dataModel"><option value="relational">Relational (orders, users, joins)</option><option value="document">Document (flexible JSON)</option><option value="keyvalue">Key value (sessions, carts)</option><option value="timeseries">Time series (metrics, IoT)</option><option value="graph">Graph (networks, recommendations)</option><option value="geo">Geospatial</option></select></label>
+  <div class="checks">
+    <label><input type="checkbox" id="seo"> Needs SEO</label><label><input type="checkbox" id="realtime"> Realtime</label><label><input type="checkbox" id="mobile"> Mobile app</label><label><input type="checkbox" id="ml"> ML / AI features</label>
+  </div>
+  <h3>Scale</h3>
+  <label>Users<select id="scale"><option value="tiny">&lt; 1k MAU</option><option value="small">1k to 50k MAU</option><option value="medium">50k to 500k MAU</option><option value="large">500k to 5M MAU</option><option value="massive">5M+ MAU</option></select></label>
+  <label>Traffic<select id="traffic"><option value="steady">Steady</option><option value="spiky">Spiky (launches, sales, exams)</option></select></label>
+  <h3>Team</h3>
+  <label>Team size <b id="teamSizeV">3</b><input type="range" id="teamSize" min="1" max="60" value="3"></label>
+  <div class="checks" id="skills">
+    <label><input type="checkbox" value="ts" checked> JS/TS</label><label><input type="checkbox" value="py"> Python</label><label><input type="checkbox" value="go"> Go</label><label><input type="checkbox" value="java"> Java</label><label><input type="checkbox" value="php"> PHP</label><label><input type="checkbox" value="dart"> Dart</label>
+  </div>
+  <label>Deadline<select id="timeToMarket"><option value="asap">ASAP (weeks)</option><option value="normal" selected>Normal (months)</option><option value="long">Long term platform</option></select></label>
+  <h3>Budget and infra</h3>
+  <label>Monthly infra budget $<b id="budgetV">50</b><input type="range" id="budget" min="0" max="5000" step="10" value="50"></label>
+  <label>Infra<select id="infra"><option value="any">No preference</option><option value="serverless">Serverless only</option><option value="containers">Containers</option><option value="onprem">On-prem required</option></select></label>
+  <label>Cloud<select id="cloud"><option value="any">Any</option><option value="aws">AWS</option><option value="gcp">GCP</option></select></label>
+  <label>Compliance<select id="compliance"><option value="none">None</option><option value="pci">PCI DSS (cards)</option><option value="hipaa">HIPAA (health)</option></select></label>
+  <div class="checks"><label><input type="checkbox" id="residencyIN"> Data must stay in India</label></div>
+</section>
+<section id="out"></section>
+</main>
+<footer>Rule based engine, runs fully in your browser. No data leaves the page.</footer>
+<script src="engine.js"></script><script src="app.js"></script>
+</body></html>

@@ -1,0 +1,1 @@
+{ "buildCommand": "cp src/engine.js public/engine.js", "outputDirectory": "public" }
